@@ -15,7 +15,7 @@ GIRC es un MVP académico con un flujo transaccional de consulta de inventario y
 
 ## Decisión tomada
 
-Adoptar un **monolito modular organizado en capas**. React es un cliente SPA separado y Spring Boot es el backend desplegable, que contiene módulos GIRC y clases de reservas heredadas.
+Adoptar un **monolito modular organizado en capas**. React es un cliente SPA separado y Spring Boot es el backend desplegable. El paquete raíz `com.girc` agrupa los casos de catálogo y pedidos.
 
 ## Consecuencias y trade-offs
 

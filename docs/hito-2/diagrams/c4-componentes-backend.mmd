@@ -1,14 +1,14 @@
 flowchart TB
   web["Frontend web vía Nginx"]
-  db[("PostgreSQL")]
-  subgraph api["Contenedor API Spring Boot"]
+  db[("PostgreSQL<br/>productos · pedidos · detalles_pedido")]
+  subgraph api["Contenedor API Spring Boot · com.girc"]
     mvc["Spring MVC y Jakarta Validation<br/>Contrato CrearPedidoRequest"]
     pc["ProductoController<br/>GET /api/v1/productos"]
     oc["PedidoController<br/>POST /api/v1/pedidos"]
     svc["PedidoServiceImpl implementa PedidoService<br/>Transacción, reglas de stock y cálculo"]
     pr["ProductoRepository<br/>findAll / findByIdWithLock"]
     or["PedidoRepository<br/>existsByClaveIdempotencia / save"]
-    evt["ApplicationEventPublisher<br/>Publica PedidoCreadoEvent"]
+    evt["ApplicationEventPublisher<br/>Publica PedidoCreadoEvent en memoria"]
     advice["GlobalExceptionHandler<br/>400 · 404 · 409 · 422"]
   end
   web --> mvc

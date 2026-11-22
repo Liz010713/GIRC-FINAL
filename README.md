@@ -90,4 +90,4 @@ El archivo `.env` está excluido de Git. No uses las credenciales de ejemplo en 
 
 ## Estructura
 
-El backend conserva la estructura de paquetes entregada en la plantilla del curso y organiza el código por `controller`, `domain.entity`, `dto`, `exception`, `repository` y `service`. Los módulos de producto y pedido implementan el flujo GIRC; la pantalla principal está orientada a inventario y comercialización.
+El backend usa el paquete raíz `com.girc` y organiza el código por `controller`, `domain.entity`, `dto`, `exception`, `repository` y `service`. La aplicación gestiona inventario y pedidos comerciales. Una base de datos vacía se inicializa con las tres tablas de GIRC y el catálogo de demostración. Para una instalación previa, `ddl-auto=update` conserva las tablas existentes. La depuración del esquema requiere una migración independiente que preserve los datos de GIRC.

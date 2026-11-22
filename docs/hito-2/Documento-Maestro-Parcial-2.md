@@ -16,7 +16,7 @@ Los datos de portada se tomaron de los Talleres 3 y 12. El material de curso con
 
 GIRC permite consultar existencias y registrar pedidos comerciales. El operador selecciona productos y cantidades en React. Spring Boot valida la solicitud, rechaza claves repetidas, bloquea filas de producto para evaluar el stock, calcula los importes, persiste el pedido y publica un evento de aplicación.
 
-La plantilla original del profesor aporta las entidades Jugador, Cancha y Reserva, sus tablas, el flujo de disponibilidad y reservas, y sus pruebas. Las rutas heredadas son `GET /api/v1/canchas/disponibilidad` y `POST /api/v1/reservas`. El paquete `com.courtsync.pro` conserva el nombre histórico. [Controladores](../../backend/src/main/java/com/courtsync/pro/controller).
+El paquete raíz `com.girc` agrupa el catálogo de productos y la creación de pedidos. [Controladores](../../backend/src/main/java/com/girc/controller).
 
 ### Contrato HTTP implementado
 
@@ -28,12 +28,12 @@ La plantilla original del profesor aporta las entidades Jugador, Cancha y Reserv
 | HTTP | Cuándo se produce | Evidencia |
 |---|---|---|
 | 400 | JSON ilegible o falla de validación del DTO. MVC corta el flujo antes del servicio. | `PedidoControllerTest`, `GlobalExceptionHandler` |
-| 404 | El producto consultado no existe. | `PedidoServiceTest` cubre la excepción. El advice define el HTTP 404. |
+| 404 | El producto consultado no existe. | `PedidoServiceTest`, `PedidoControllerTest` |
 | 409 | La consulta inicial encuentra la clave de idempotencia. | `PedidoServiceTest`, `PedidoControllerTest` |
 | 422 | Un ítem supera las existencias restantes de su producto. | `PedidoServiceTest`, `PedidoControllerTest` |
 | 201 | Servicio y commit exitosos. El código de orden usa prefijo `ORD-` y UUID. | `PedidoControllerTest` con servicio simulado |
 
-El advice construye `ErrorResponse(timestamp, status, error, message, path)`. La SPA usa el mensaje devuelto. Bloquea el botón mientras procesa el envío y genera un UUID nuevo por confirmación. Una clave repetida se rechaza con 409 si ya es visible en la consulta, sin reproducir la respuesta anterior. La carrera entre solicitudes con la misma clave se protege mediante UNIQUE, pero la violación concurrente carece de traducción explícita a 409. [React](../../frontend/src/App.tsx), [cliente HTTP](../../frontend/src/services/gircApi.ts), [advice](../../backend/src/main/java/com/courtsync/pro/exception/GlobalExceptionHandler.java).
+El advice construye `ErrorResponse(timestamp, status, error, message, path)`. La SPA usa el mensaje devuelto. Bloquea el botón mientras procesa el envío y genera un UUID nuevo por confirmación. Una clave repetida se rechaza con 409 si ya es visible en la consulta, sin reproducir la respuesta anterior. La carrera entre solicitudes con la misma clave se protege mediante UNIQUE, pero la violación concurrente carece de traducción explícita a 409. [React](../../frontend/src/App.tsx), [cliente HTTP](../../frontend/src/services/gircApi.ts), [advice](../../backend/src/main/java/com/girc/exception/GlobalExceptionHandler.java).
 
 ### Contraste con las referencias del curso
 
@@ -63,16 +63,16 @@ Las reglas del Taller 2 tienen su propia numeración. El taller registra creaci�
 | Reglas de negocio del Taller 2 | Contraste con GIRC |
 |---|---|
 | RN-01.1 y RN-01.2 · SKU único y mínimo de stock positivo | `Producto` declara unicidad del SKU y `@Min(1)` para `stockMinimo`. El alta comercial por HTTP sigue pendiente. |
-| RN-02.1 y RN-02.2 · Rechazo por falta de stock y descuento al confirmar | `PedidoServiceImpl` comprueba y descuenta existencias en la transacción. El estado inicial real es `Pendiente`. El taller proponía `Reservado`. |
+| RN-02.1 y RN-02.2 · Rechazo por falta de stock y descuento al confirmar | `PedidoServiceImpl` comprueba y descuenta existencias en la transacción. El estado inicial es `Pendiente`. |
 | RN-03.1 y RN-03.2 · Motivo y saldo de ajustes manuales | El flujo de ajustes manuales queda pendiente. La validación de saldo del pedido pertenece a RN-02.1. |
 | RN-04.1 y RN-04.2 · Umbral y agotamiento | El pedido cambia el producto a `Crítico` si queda stock hasta el mínimo y a `Agotado` si llega a cero. La alerta por canal externo queda pendiente. |
 | RN-05.1 y RN-05.2 · Rango de fechas y estados para reportes | Los filtros y la generación de reportes comerciales quedan pendientes. |
 
-[Entidad Producto](../../backend/src/main/java/com/courtsync/pro/domain/entity/Producto.java), [servicio de pedidos](../../backend/src/main/java/com/courtsync/pro/service/PedidoServiceImpl.java).
+[Entidad Producto](../../backend/src/main/java/com/girc/domain/entity/Producto.java), [servicio de pedidos](../../backend/src/main/java/com/girc/service/PedidoServiceImpl.java).
 
 ## 2. Estilo arquitectónico y atributos de calidad
 
-El backend es un **monolito modular en capas**, con un solo proceso Spring Boot y separación lógica por `controller`, `service`, `repository`, `domain.entity`, `dto` y `exception`. Los paquetes son técnicos. La separación entre GIRC y plantilla es funcional dentro del mismo proceso. React se despliega aparte con Nginx. Una transacción local coordina las escrituras de stock, pedido y detalles.
+El backend es un **monolito modular en capas**, con un solo proceso Spring Boot y separación lógica por `controller`, `service`, `repository`, `domain.entity`, `dto` y `exception`. React se despliega aparte con Nginx. Una transacción local coordina las escrituras de stock, pedido y detalles.
 
 Los microservicios repartirían despliegues y agregarían coordinación para sostener la integridad de stock. Una arquitectura hexagonal explícita aportaría puertos de dominio independientes de Spring Data y exigiría introducir adaptadores. En el alcance actual las capas permiten probar el servicio con dobles y desplegar una sola API. El escalado de la API se hace como unidad y el catálogo accede al repositorio directamente. [ADR de estilo](adr/ADR-001-monolito-modular-en-capas.md).
 
@@ -90,17 +90,17 @@ La integridad se apoya en transacciones, bloqueo y unicidad. La mantenibilidad s
 
 ## 4. UML
 
-- **Clases.** `Pedido` compone 0..* detalles en el modelo de persistencia, cada detalle pertenece a un pedido y referencia un producto. El DTO exige 1..* ítems. La plantilla tiene una relación de muchas reservas a una cancha. Ambos identificadores de usuario son escalares. Las operaciones de stock están en el servicio. [Fuente](diagrams/uml-clases-dominio.mmd).
+- **Clases.** `Pedido` compone 0..* detalles en el modelo de persistencia. Cada detalle pertenece a un pedido y referencia un producto. El DTO exige 1..* ítems. El identificador del usuario es escalar. Las operaciones de stock están en el servicio. [Fuente](diagrams/uml-clases-dominio.mmd).
 - **Secuencia.** Los bloques `alt` muestran los caminos excluyentes de 400, 409, 404, 422 y 201. Se toma un bloqueo por producto distinto en el orden de primera aparición, se comprueba el stock acumulado de líneas repetidas y se modifica inventario después de validar todas las líneas. `PedidoCreadoEvent` se publica durante la transacción antes del commit. El 201 requiere que el commit concluya. [Fuente](diagrams/uml-secuencia-crear-pedido.mmd).
 - **Despliegue.** Compose publica Nginx (80), API (8080) y PostgreSQL (5432), con volumen `postgres_data` y healthcheck de la base que condiciona el arranque de la API. Vite usa 5173 y su propio proxy en desarrollo. La vista también muestra la topología de producción propuesta para el parcial: un VPS con Nginx como único punto público HTTPS y API y PostgreSQL en red privada. TLS, secretos externos y copias de seguridad siguen pendientes. [Fuente](diagrams/uml-despliegue.mmd), [Compose](../../docker-compose.yml), [configuración Vite](../../frontend/vite.config.ts).
 
 ## 5. Diseño de datos y persistencia
 
-`productos`, `pedidos` y `detalles_pedido` forman el núcleo comercial. El esquema declara PK identity, SKU/código de orden/clave únicos y dos FKs obligatorias de detalle. Los importes usan `BigDecimal` y precisión 12,2. Las dos relaciones de detalle son LAZY. GIRC usa estados String, mientras el legado usa enums persistidos como texto. Los índices compuestos explícitos apoyan consultas heredadas de reservas. Hibernate actualiza el esquema y ejecuta semilla PostgreSQL. Las migraciones versionadas y la inspección física del DDL quedan pendientes. [Diccionario de datos y ORM](persistencia/diccionario-datos.md).
+`productos`, `pedidos` y `detalles_pedido` forman el esquema de GIRC. El modelo declara PK identity, SKU/código de orden/clave únicos y dos FK obligatorias de detalle. Los importes usan `BigDecimal` y precisión 12,2. Las dos relaciones de detalle son LAZY. Los estados son cadenas. Hibernate actualiza el esquema y la inicialización SQL carga solo productos de demostración. Las migraciones versionadas y la inspección física del DDL quedan pendientes. [Diccionario de datos y ORM](persistencia/diccionario-datos.md).
 
 ## 6. Código limpio, SOLID y patrones
 
-El caso de pedido separa HTTP, reglas, acceso a datos y errores. `@RequiredArgsConstructor` inyecta contratos y el DIP es parcial porque el servicio usa tipos de Spring. El DTO aísla el contrato de entrada. Los repositorios abstraen CRUD y consultas. `@Transactional` delimita la unidad de trabajo. El publisher desacopla la emisión del evento de su consumo. El código de GIRC carece de consumidor de pedidos. El listener de la plantilla recibe exclusivamente `ReservaCreadaEvent` y escribe un log después del commit. [Fragmentos comentados](Evidencia-SOLID-y-patrones.md).
+El caso de pedido separa HTTP, reglas, acceso a datos y errores. `@RequiredArgsConstructor` inyecta contratos y el DIP es parcial porque el servicio usa tipos de Spring. El DTO aísla el contrato de entrada. Los repositorios abstraen CRUD y consultas. `@Transactional` delimita la unidad de trabajo. El publisher emite el evento en memoria antes del commit. El evento carece de consumidor. [Fragmentos comentados](Evidencia-SOLID-y-patrones.md).
 
 ## 7. Decisiones arquitectónicas
 
@@ -111,46 +111,44 @@ El caso de pedido separa HTTP, reglas, acceso a datos y errores. `@RequiredArgsC
 
 ## 8. Pruebas automatizadas y contraste con la Unidad 3
 
-La **Guía de Pruebas Automatizadas de la Unidad 3**, suministrada por el equipo, fija un mínimo de **3 pruebas unitarias del servicio principal y 1 prueba MockMvc de su controlador**. GIRC supera esa meta con **4 pruebas de `PedidoServiceTest` y 6 de `PedidoControllerTest`**. Una prueba adicional de `ProductoControllerTest` lleva el total de GIRC a 11. La guía se usa aquí como evidencia complementaria al enunciado del Parcial 2, que centra la entrega en arquitectura, modelado, persistencia y código limpio. [Enunciado del examen](../../talleres/Parcial-2-Enunciado.md), [guía de la Unidad 3](../../talleres/Unidad-3-Guia-de-Pruebas-Automatizadas.md).
+La guía de la Unidad 3 fija un mínimo de **3 pruebas unitarias del servicio principal y 1 prueba MockMvc de su controlador**. GIRC cuenta con **4 pruebas de `PedidoServiceTest` y 7 de `PedidoControllerTest`**, además de 1 de catálogo y 3 de persistencia. [Enunciado del examen](../../talleres/Parcial-2-Enunciado.md), [aplicación de la guía al backend GIRC](../../talleres/Unidad-3-Guia-de-Pruebas-Automatizadas.md).
 
 ### Ejecución en verde
 
-El 22 de noviembre de 2026, Maven ejecutó la fase `test` con Java 21 desde el repositorio: **BUILD SUCCESS, 21 pruebas, 0 fallos, 0 errores y 0 omitidas**. Maven deja los informes de Surefire en `backend/target/surefire-reports/`.
+El 22 de noviembre de 2026, Maven ejecutó la suite con Java 21 y obtuvo **BUILD SUCCESS, 15 pruebas, 0 fallos, 0 errores y 0 omitidas**. Los informes de Surefire quedan en `backend/target/surefire-reports/`.
 
 ```powershell
-mvn -f backend/pom.xml test
+mvn -f backend/pom.xml clean test
 ```
 
-El frontend también pasó `npm ci` y `npm run build` en la verificación previa. Ese trabajo valida TypeScript y el empaquetado de Vite. [Flujo de CI](../../.github/workflows/ci.yml).
+El frontend compiló con `npm run build`, que valida TypeScript y ejecuta el empaquetado de Vite. [Flujo de CI](../../.github/workflows/ci.yml).
 
 ### Cobertura por criterio
 
-| Criterio de la guía | GIRC · 11 pruebas | Plantilla del profesor · 10 pruebas |
-|---|---|---|
-| Servicio · JUnit 5 y Mockito | `PedidoServiceTest` (4). Cálculo, descuento y publicación. También verifica los rechazos por falta de stock, producto ausente y clave repetida. | `ReservaServiceTest` (5). Creación, anticipo, anticipación, choque de horarios y límite de reservas. |
-| API · `@WebMvcTest` y MockMvc | `PedidoControllerTest` (6): tres validaciones 400, 409, 422 y 201. `ProductoControllerTest` (1): 200 y campos de inventario. Controladores con servicio o repositorio simulado mediante `@MockitoBean`. | `ReservaControllerIntegrationTest` (2): 400 de validación y 409 por choque de horario, con servicio simulado. |
-| Persistencia · `@DataJpaTest` y H2 | Pendiente una prueba de repositorio o consulta específica para productos y pedidos. | `ReservaRepositoryDataJpaTest` (3): solapamiento parcial, horarios contiguos y exclusión de reservas canceladas. Usa BD embebida y `TestEntityManager`. |
+| Criterio de la guía | Evidencia de GIRC |
+|---|---|
+| Servicio · JUnit 5 y Mockito | `PedidoServiceTest` (4). Cálculo, descuento y publicación. Verifica rechazos por falta de stock, producto ausente y clave repetida. |
+| API · `@WebMvcTest` y MockMvc | `PedidoControllerTest` (7): tres casos 400 y un caso de cada 404, 409, 422 y 201. `ProductoControllerTest` (1): 200 y campos de inventario. Se usan colaboradores simulados mediante `@MockitoBean`. |
+| Persistencia · `@DataJpaTest` y H2 | `InventarioYPedidosDataJpaTest` (3). Comprueba el modo de bloqueo, persistencia de detalle en cascada, consulta de idempotencia y violación de unicidad. |
 
 ### Correspondencia con los escenarios de la guía
 
 | Escenario | Evidencia del backend activo |
 |---|---|
-| Camino feliz y estado inicial | El servicio GIRC calcula el total, descuenta el stock y comprueba el estado `Pendiente`. MockMvc comprueba el HTTP 201. El anticipo del 50 % se prueba en el servicio de reservas heredado. |
-| Límite diario y anticipación | La plantilla prueba el límite de dos reservas activas y la regla temporal. A 1 h 59 min rechaza antes de buscar la cancha. A 2 h 01 min supera la regla temporal y la prueba termina con cancha ausente. Estos escenarios corresponden a reservas. |
-| Disponibilidad y conflictos | La plantilla prueba el choque de horario y su HTTP 409. En GIRC, stock insuficiente se traduce a 422 y clave de idempotencia existente a 409. |
+| Camino feliz y estado inicial | El servicio calcula el total, descuenta el stock y asigna `Pendiente`. MockMvc comprueba el HTTP 201. |
+| Disponibilidad y conflictos | Stock insuficiente se traduce a 422 y clave de idempotencia existente a 409. |
 | Recurso inexistente o inactivo | GIRC comprueba la excepción por producto ausente en el servicio. El catálogo carece de un campo de activación del producto. |
 | Eventos | GIRC verifica una publicación de `PedidoCreadoEvent` en el camino feliz y ninguna en cada rechazo probado. La comprobación observa el publicador simulado. |
 | Entrada 400 y formato de errores | MockMvc comprueba cantidad cero, campos obligatorios ausentes o inválidos y lista vacía, sin llamadas al servicio. Los casos 409 y 422 verifican el código HTTP y campos de `ErrorResponse`. |
-| Consultas de solapamiento | Las tres pruebas JPQL con H2 corresponden al módulo heredado de reservas. |
+| Consultas y restricciones | H2 verifica el modo `PESSIMISTIC_WRITE` de la consulta JPQL y el comportamiento de persistencia e idempotencia. |
 
 ### Ejemplo AAA en GIRC
 
-En `PedidoServiceTest.crearPedido_CaminoFeliz_CalculaTotalYDescuentaStock`, la fase **Arrange** prepara stock de 10, un pedido de 4 unidades y respuestas simuladas de los repositorios. **Act** llama a `pedidoService.crearPedido(request)`. **Assert** comprueba total de 50,00, stock restante de 6, estado del producto `Crítico`, una llamada a `save` y una publicación de `PedidoCreadoEvent`. Los casos de excepción agrupan Act y Assert con `assertThatThrownBy`. Las pruebas web de GIRC agrupan la llamada y las comprobaciones HTTP con `perform(...).andExpect(...)`. [Servicio](../../backend/src/test/java/com/courtsync/pro/service/PedidoServiceTest.java), [API pedidos](../../backend/src/test/java/com/courtsync/pro/controller/PedidoControllerTest.java), [API productos](../../backend/src/test/java/com/courtsync/pro/controller/ProductoControllerTest.java), [JPA de la plantilla](../../backend/src/test/java/com/courtsync/pro/repository/ReservaRepositoryDataJpaTest.java).
+En `PedidoServiceTest.crearPedido_CaminoFeliz_CalculaTotalYDescuentaStock`, la fase **Arrange** prepara stock de 10, un pedido de 4 unidades y respuestas simuladas de los repositorios. **Act** llama a `pedidoService.crearPedido(request)`. **Assert** comprueba total de 50,00, stock restante de 6, estado del producto `Crítico`, una llamada a `save` y una publicación de `PedidoCreadoEvent`. Los casos de excepción agrupan Act y Assert con `assertThatThrownBy`. Las pruebas web agrupan la llamada y las comprobaciones HTTP con `perform(...).andExpect(...)`. [Servicio](../../backend/src/test/java/com/girc/service/PedidoServiceTest.java), [API pedidos](../../backend/src/test/java/com/girc/controller/PedidoControllerTest.java), [API productos](../../backend/src/test/java/com/girc/controller/ProductoControllerTest.java), [Persistencia](../../backend/src/test/java/com/girc/repository/InventarioYPedidosDataJpaTest.java).
 
 ### Brechas de cobertura
 
-- **Contrato HTTP.** El servicio unitario cubre `RecursoNoEncontradoException` y el advice define HTTP 404. Falta un caso MockMvc que verifique ese estado y su cuerpo para pedidos.
-- **Persistencia GIRC.** Falta probar las consultas de producto y pedido, el guardado en cascada y las restricciones del esquema. El test JPA existente usa H2 para reservas heredadas.
+- **Esquema PostgreSQL.** Falta verificar el DDL y sus restricciones en una instancia real. La prueba de persistencia usa H2.
 - **Transacción en PostgreSQL.** Falta probar el bloqueo real con solicitudes concurrentes, rollback del pedido y stock, y duplicados simultáneos. Mockito verifica invocaciones a colaboradores, mientras MockMvc comprueba el contrato web con esos colaboradores simulados.
 - **Flujo completo.** Falta verificar la serialización del pedido persistido con OSIV apagado y medir los escenarios de carga definidos por los RNF.
 

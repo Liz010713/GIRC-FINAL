@@ -1,0 +1,82 @@
+classDiagram
+  namespace GIRC {
+    class Producto {
+      -Long id
+      -String sku
+      -String nombreProducto
+      -BigDecimal precioUnitario
+      -Integer stockActual
+      -Integer stockMinimo
+      -String estado
+    }
+    class Pedido {
+      -Long id
+      -String codigoOrden
+      -Long idUsuario
+      -String claveIdempotencia
+      -BigDecimal totalNeto
+      -String estado
+      -OffsetDateTime fechaCreacion
+    }
+    class DetallePedido {
+      -Long id
+      -Integer cantidadSolicitada
+      -BigDecimal precioUnitario
+      -BigDecimal subtotal
+    }
+    class PedidoServiceImpl {
+      +crearPedido(CrearPedidoRequest request) Pedido
+      -calcularEstadoProducto(Producto producto) String
+    }
+  }
+  namespace Plantilla {
+    class Jugador {
+      -Long id
+      -String nombre
+      -String email
+    }
+    class Cancha {
+      -Long id
+      -String nombre
+      -TipoCancha tipoCancha
+      -Double tarifaHora
+      -Boolean activa
+    }
+    class Reserva {
+      -Long id
+      -String codigoConfirmacion
+      -Long usuarioId
+      -OffsetDateTime fechaHoraInicio
+      -OffsetDateTime fechaHoraFin
+      -Integer duracionHoras
+      -Double valorTotal
+      -Double valorAnticipo
+      -EstadoReserva estado
+      -OffsetDateTime fechaCreacion
+      -OffsetDateTime fechaExpiracionPago
+    }
+    class TipoCancha {
+      <<enumeration>>
+      PADEL
+      FUTBOL_5
+      TENIS
+    }
+    class EstadoReserva {
+      <<enumeration>>
+      PENDIENTE_PAGO
+      CONFIRMADA
+      CANCELADA
+      CANCELADA_CON_PENALIDAD
+      EXPIRADA
+      FINALIZADA
+    }
+  }
+  Pedido "1" *-- "0..*" DetallePedido : detalles
+  DetallePedido "0..*" --> "1" Producto : producto
+  Reserva "0..*" --> "1" Cancha : cancha
+  Cancha ..> TipoCancha
+  Reserva ..> EstadoReserva
+  PedidoServiceImpl ..> Pedido : crea
+  PedidoServiceImpl ..> Producto : actualiza stock
+  note for Pedido "idUsuario es escalar. La API exige al menos un ítem."
+  note for Reserva "usuarioId es escalar."

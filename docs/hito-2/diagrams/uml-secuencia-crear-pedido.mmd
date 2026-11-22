@@ -1,0 +1,61 @@
+sequenceDiagram
+  actor O as Operador
+  participant UI as React / gircApi
+  participant N as Nginx
+  participant M as Spring MVC
+  participant C as PedidoController
+  participant S as PedidoServiceImpl
+  participant R as Repositorios JPA
+  participant DB as PostgreSQL
+  participant A as GlobalExceptionHandler
+  participant E as Eventos Spring
+
+  O->>UI: Confirma el pedido
+  UI->>N: POST /api/v1/pedidos con JSON y UUID
+  N->>M: Reenvía solicitud
+  M->>M: Deserializa y valida CrearPedidoRequest
+  alt 400 JSON inválido o DTO rechazado
+    M->>A: Excepción de entrada
+    A-->>M: 400 ErrorResponse
+  else Entrada válida
+    M->>C: crearPedido(request)
+    C->>S: crearPedido en transacción
+    S->>R: existsByClaveIdempotencia(clave)
+    R->>DB: Consulta por clave única
+    DB-->>S: Resultado vía repositorio
+    alt 409 clave ya registrada
+      S-->>M: ConflictoNegocioException tras rollback
+      M->>A: Resuelve excepción
+      A-->>M: 409 ErrorResponse
+    else Clave ausente
+      loop Cada ítem hasta terminar o encontrar el primer error
+        opt Primera aparición del producto
+          S->>R: findByIdWithLock(id)
+          R->>DB: Búsqueda por PK con bloqueo pesimista
+          DB-->>S: Producto o ausencia vía repositorio
+        end
+        S->>S: Si existe, valida stock acumulado y calcula subtotal
+      end
+      alt 404 producto ausente
+        S-->>M: RecursoNoEncontradoException tras rollback
+        M->>A: Resuelve excepción
+        A-->>M: 404 ErrorResponse
+      else 422 stock insuficiente
+        S-->>M: StockInsuficienteException tras rollback
+        M->>A: Resuelve excepción
+        A-->>M: 422 ErrorResponse
+      else 201 todos los ítems son válidos
+        S->>S: Aplica stock y estado, arma pedido y detalles
+        S->>R: save(pedido) con cascada
+        R-->>S: Pedido guardado
+        S->>E: publishEvent(PedidoCreadoEvent)
+        Note over S,E: Publicación en memoria antes del commit, sin consumidor GIRC
+        S->>DB: Hibernate completa flush y commit
+        S-->>C: Pedido tras commit exitoso
+        C-->>M: 201 Created con pedido
+      end
+    end
+  end
+  M-->>N: Respuesta HTTP/JSON
+  N-->>UI: Reenvía respuesta
+  UI-->>O: Código de orden o mensaje de error

@@ -1,0 +1,20 @@
+flowchart TB
+  web["Frontend web vía Nginx"]
+  db[("PostgreSQL")]
+  subgraph api["Contenedor API Spring Boot"]
+    mvc["Spring MVC y Jakarta Validation<br/>Contrato CrearPedidoRequest"]
+    pc["ProductoController<br/>GET /api/v1/productos"]
+    oc["PedidoController<br/>POST /api/v1/pedidos"]
+    svc["PedidoServiceImpl implementa PedidoService<br/>Transacción, reglas de stock y cálculo"]
+    pr["ProductoRepository<br/>findAll / findByIdWithLock"]
+    or["PedidoRepository<br/>existsByClaveIdempotencia / save"]
+    evt["ApplicationEventPublisher<br/>Publica PedidoCreadoEvent"]
+    advice["GlobalExceptionHandler<br/>400 · 404 · 409 · 422"]
+  end
+  web --> mvc
+  mvc --> pc & oc
+  mvc -.->|Excepciones resueltas por MVC| advice
+  pc --> pr
+  oc --> svc
+  svc --> pr & or & evt
+  pr & or -->|JPA sobre entidades GIRC| db

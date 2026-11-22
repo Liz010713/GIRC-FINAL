@@ -90,13 +90,13 @@ La integridad se apoya en transacciones, bloqueo y unicidad. La mantenibilidad s
 
 ## 4. UML
 
-- **Clases.** `Pedido` compone 0..* detalles en el modelo de persistencia. Cada detalle pertenece a un pedido y referencia un producto. El DTO exige 1..* ítems. El identificador del usuario es escalar. Las operaciones de stock están en el servicio. [Fuente](diagrams/uml-clases-dominio.mmd).
+- **Clases.** `Pedido` compone 0..* detalles en el modelo de persistencia. Cada detalle pertenece a un pedido y referencia un producto. El modelo incluye las enumeraciones de estado `EstadoProducto` (`DISPONIBLE`, `CRITICO`, `AGOTADO`) y `EstadoPedido` (`PENDIENTE`, `CONFIRMADO`, `CANCELADO`). El DTO exige 1..* ítems. El identificador del usuario es escalar. Las operaciones de stock están en el servicio. [Fuente](diagrams/uml-clases-dominio.mmd).
 - **Secuencia.** Los bloques `alt` muestran los caminos excluyentes de 400, 409, 404, 422 y 201. Se toma un bloqueo por producto distinto en el orden de primera aparición, se comprueba el stock acumulado de líneas repetidas y se modifica inventario después de validar todas las líneas. `PedidoCreadoEvent` se publica durante la transacción antes del commit. El 201 requiere que el commit concluya. [Fuente](diagrams/uml-secuencia-crear-pedido.mmd).
 - **Despliegue.** Compose publica Nginx (80), API (8080) y PostgreSQL (5432), con volumen `postgres_data` y healthcheck de la base que condiciona el arranque de la API. Vite usa 5173 y su propio proxy en desarrollo. La vista también muestra la topología de producción propuesta para el parcial: un VPS con Nginx como único punto público HTTPS y API y PostgreSQL en red privada. TLS, secretos externos y copias de seguridad siguen pendientes. [Fuente](diagrams/uml-despliegue.mmd), [Compose](../../docker-compose.yml), [configuración Vite](../../frontend/vite.config.ts).
 
 ## 5. Diseño de datos y persistencia
 
-`productos`, `pedidos` y `detalles_pedido` forman el esquema de GIRC. El modelo declara PK identity, SKU/código de orden/clave únicos y dos FK obligatorias de detalle. Los importes usan `BigDecimal` y precisión 12,2. Las dos relaciones de detalle son LAZY. Los estados son cadenas. Hibernate actualiza el esquema y la inicialización SQL carga solo productos de demostración. Las migraciones versionadas y la inspección física del DDL quedan pendientes. [Diccionario de datos y ORM](persistencia/diccionario-datos.md).
+`productos`, `pedidos` y `detalles_pedido` forman el esquema de GIRC. El modelo declara PK identity, SKU/código de orden/clave únicos, dos FK obligatorias de detalle e índices explícitos mediante `@Table(indexes = ...)` (índices en las FK `pedido_id` y `producto_id` de `detalles_pedido`, índice compuesto `(estado, stock_actual)` en `productos` e índice compuesto `(id_usuario, fecha_creacion)` en `pedidos`). Los importes usan `BigDecimal` y precisión 12,2. Las dos relaciones de detalle son `FetchType.LAZY`. Los estados se mapean como enumeraciones seguras (`EstadoProducto` y `EstadoPedido`) con `@Enumerated(EnumType.STRING)` y `@JsonValue` para mantener compatibilidad JSON con la SPA. Hibernate actualiza el esquema y la inicialización SQL carga productos de demostración. Las migraciones versionadas y la inspección física del DDL en PostgreSQL quedan pendientes. [Diccionario de datos y ORM](persistencia/diccionario-datos.md).
 
 ## 6. Código limpio, SOLID y patrones
 
@@ -158,7 +158,7 @@ En `PedidoServiceTest.crearPedido_CaminoFeliz_CalculaTotalYDescuentaStock`, la f
 |---|---|
 | Identidad | Autenticación, autorización, origen confiable de `idUsuario`, CORS restringido y TLS. |
 | Integridad | Controlar duplicados concurrentes en la respuesta HTTP, definir orden estable de bloqueos y probar PostgreSQL. Validar tamaños y elementos nulos del DTO. |
-| API y datos | DTOs de salida, migraciones, verificación de CHECK e índices, paginación de catálogo según perfil de uso. |
+| API y datos | DTOs de salida, migraciones versionadas (Flyway/Liquibase), verificación física de CHECK en PostgreSQL y paginación de catálogo según perfil de uso. |
 | Eventos | Adoptar consumo después de commit y entrega durable si el caso lo exige. El proyecto carece de SMTP real y de integración de pagos. |
 | Operación | Secretos externos, restauración de backups, métricas y pruebas de carga. |
 

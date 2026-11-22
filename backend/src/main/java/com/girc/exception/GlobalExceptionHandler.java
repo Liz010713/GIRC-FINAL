@@ -67,6 +67,14 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.UNPROCESSABLE_ENTITY, "STOCK_INSUFICIENTE", ex.getMessage(), request);
     }
 
+    @ExceptionHandler(CredencialesInvalidasException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCredentials(
+            CredencialesInvalidasException ex,
+            HttpServletRequest request
+    ) {
+        return buildError(HttpStatus.UNAUTHORIZED, "CREDENCIALES_INVALIDAS", ex.getMessage(), request);
+    }
+
     private ResponseEntity<ErrorResponse> buildError(
             HttpStatus status,
             String errorCode,

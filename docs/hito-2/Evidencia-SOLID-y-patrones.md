@@ -80,3 +80,25 @@ public class GlobalExceptionHandler {
 ```
 
 El servicio expresa el rechazo mediante una excepción y el advice determina HTTP 422. Los demás manejadores cubren entrada inválida, producto ausente y clave existente. El Builder de Lombok facilita crear entidades. La implementación carece de Factory de dominio explícita y Strategy en este flujo. [Advice](../../backend/src/main/java/com/girc/exception/GlobalExceptionHandler.java).
+
+## Persistencia: enumeraciones seguras e índices JPA
+
+```java
+@Entity
+@Table(
+        name = "productos",
+        indexes = {
+                @Index(name = "idx_productos_estado_stock", columnList = "estado, stock_actual")
+        }
+)
+public class Producto {
+    // Se omiten los demás atributos de catálogo y existencias.
+    @NotNull
+    @Enumerated(EnumType.STRING) // Persiste el nombre del enum, evitando fragilidad por ordinal.
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private EstadoProducto estado = EstadoProducto.DISPONIBLE;
+}
+```
+
+`Pedido` aplica el mismo patrón con `EstadoPedido` e índice compuesto `(id_usuario, fecha_creacion)`, y `DetallePedido` declara índices sobre sus llaves foráneas `pedido_id` y `producto_id` junto con relaciones `FetchType.LAZY`. Ambas enumeraciones usan `@JsonValue` para mantener compatibilidad con las etiquetas esperadas por el frontend (`Disponible`, `Crítico`, `Agotado`, `Pendiente`). [Producto](../../backend/src/main/java/com/girc/domain/entity/Producto.java), [Pedido](../../backend/src/main/java/com/girc/domain/entity/Pedido.java), [DetallePedido](../../backend/src/main/java/com/girc/domain/entity/DetallePedido.java).

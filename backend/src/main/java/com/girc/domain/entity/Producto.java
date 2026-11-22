@@ -1,10 +1,14 @@
 package com.girc.domain.entity;
 
+import com.girc.domain.enums.EstadoProducto;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -17,7 +21,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "productos")
+@Table(
+        name = "productos",
+        indexes = {
+                @Index(name = "idx_productos_estado_stock", columnList = "estado, stock_actual")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -52,8 +61,9 @@ public class Producto {
     @Column(name = "stock_minimo", nullable = false)
     private Integer stockMinimo;
 
-    @NotBlank
+    @NotNull
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private String estado = "Disponible";
+    private EstadoProducto estado = EstadoProducto.DISPONIBLE;
 }

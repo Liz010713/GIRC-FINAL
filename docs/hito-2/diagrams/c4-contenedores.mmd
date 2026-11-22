@@ -1,13 +1,14 @@
-flowchart LR
-  op["Operador comercial"]
+flowchart TB
+  op["Operador comercial<br/>Usa la consola desde el navegador"]
   subgraph GIRC["Sistema GIRC"]
-    spa["Frontend web · React + TypeScript<br/>Se ejecuta en el navegador"]
-    nginx["Servidor web · Nginx<br/>Sirve la SPA y delega la API"]
-    api["API · Java 21 + Spring Boot 3.4.3<br/>Catálogo y creación de pedidos"]
-    db[("Base de datos · PostgreSQL 16<br/>Productos, pedidos y detalles")]
+    direction TB
+    spa["Frontend web · React 18 + TypeScript<br/>SPA ejecutada en el navegador"]
+    nginx["Servidor web y proxy inverso · Nginx<br/>Entrega HTML/CSS/JS y reenvía /api/v1"]
+    api["API REST · Java 21 + Spring Boot 3.4.3<br/>Catálogo de productos y creación de pedidos"]
+    db[("Base de datos · PostgreSQL 16<br/>Tablas: productos, pedidos y detalles_pedido")]
   end
-  op -->|Usa| spa
-  nginx -->|Entrega HTML, CSS y JS| spa
+  op -->|Interactúa vía HTTPS/HTTP| spa
+  nginx -->|Sirve estáticos HTML, CSS y JS| spa
   spa -->|HTTP /api/v1 · JSON| nginx
-  nginx -->|HTTP /api/v1 · JSON| api
-  api -->|JDBC · Spring Data JPA| db
+  nginx -->|Proxy HTTP /api/v1 · JSON| api
+  api -->|JDBC · Spring Data JPA / Hibernate| db

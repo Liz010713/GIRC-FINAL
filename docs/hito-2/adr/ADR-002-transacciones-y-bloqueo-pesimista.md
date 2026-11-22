@@ -1,20 +1,25 @@
-# ADR-002 · Transacciones y bloqueo pesimista de existencias
+# ADR-002: Transacciones y bloqueo pesimista de existencias
 
-**Estado:** aceptada  
-**Fecha de registro:** 2026-11-21
+- **Estado:** Aceptada
+- **Fecha:** 2026-11-21
 
-## Contexto y alternativas
+## Contexto y problema
 
-Dos transacciones pueden competir por las últimas unidades. Se evaluó el bloqueo pesimista con JPA, el bloqueo optimista con `@Version` y reintentos, y la actualización SQL condicional con comprobación de filas afectadas.
+En la creación de pedidos comerciales, dos o más transacciones simultáneas pueden competir por las últimas unidades de un mismo producto. Sin control de concurrencia y atomicidad, el sistema podría aprobar ventas por encima del stock real (sobreventa) o dejar un pedido guardado sin descontar existencias ante un fallo intermedio. Además, un reintento de red con la misma solicitud no debe duplicar la orden.
 
-## Decisión
+## Alternativas evaluadas
 
-`PedidoServiceImpl.crearPedido()` usa `@Transactional` y comprueba primero la existencia de la clave de idempotencia. `ProductoRepository.findByIdWithLock()` toma un bloqueo `PESSIMISTIC_WRITE` por ID distinto. El servicio valida todas las líneas y considera el consumo acumulado cuando un producto aparece varias veces. Después modifica entidades administradas, guarda el agregado y publica `PedidoCreadoEvent` antes del commit. Una excepción de negocio provoca rollback.
+1. Transacción local `@Transactional` con bloqueo pesimista JPA (`LockModeType.PESSIMISTIC_WRITE`) y verificación previa de clave de idempotencia.
+2. Bloqueo optimista con `@Version` en `Producto` y lógica de reintentos ante `OptimisticLockException`.
+3. Actualización SQL condicional (`UPDATE productos SET stock_actual = stock_actual - :cant WHERE id = :id AND stock_actual >= :cant`) comprobando filas afectadas.
 
-## Consecuencias
+## Decisión tomada
 
-- Stock, pedido y detalles comparten una transacción local. El bloqueo mantiene estable la fila durante la validación y escritura.
-- Los locks siguen el orden de aparición de los productos. Pedidos multítem en orden opuesto pueden provocar interbloqueos. El orden estable y la prueba de concurrencia en PostgreSQL están pendientes.
-- La restricción UNIQUE protege claves duplicadas concurrentes. El 409 explícito corresponde a la detección previa y queda pendiente traducir la violación de unicidad concurrente.
-- El evento es local, en memoria y carece de listener GIRC. Si se necesita entrega durable, queda por evaluar un Outbox transaccional.
-- Los tests del servicio usan Mockito. Verifican las ramas de negocio y que ante stock insuficiente no se invoque `save` ni el publisher.
+`PedidoServiceImpl.crearPedido()` se ejecuta bajo `@Transactional`. Al iniciar, valida que `claveIdempotencia` no exista con `PedidoRepository.existsByClaveIdempotencia()`. Para cada producto distinto del pedido, invoca `ProductoRepository.findByIdWithLock()`, aplicando `LockModeType.PESSIMISTIC_WRITE` sobre la fila hasta concluir la transacción. El servicio valida todas las líneas acumulando el consumo si un producto se repite, descuenta existencias, recalcula `EstadoProducto` (`DISPONIBLE`, `CRITICO`, `AGOTADO`), guarda `Pedido` en cascada con sus `DetallePedido` en estado `EstadoPedido.PENDIENTE` y publica `PedidoCreadoEvent`. Ante cualquier excepción de negocio, Spring revierte toda la transacción.
+
+## Consecuencias y trade-offs
+
+- **Positivas:** garantiza atomicidad ACID entre inventario, pedido y detalles; evita sobreventa manteniendo la fila bloqueada durante la validación y actualización; simplifica el servicio al no requerir bucles de reintento manual.
+- **Negativas:** reduce el paralelismo cuando muchas transacciones compiten simultáneamente por el mismo producto caliente; el evento `PedidoCreadoEvent` se publica en memoria antes del commit y carece aún de consumidor persistente.
+- **Riesgos y pendientes:** los bloqueos se adquieren en el orden de aparición de los ítems del request, por lo que pedidos multi-ítem en orden opuesto podrían causar interbloqueo (*deadlock*) hasta ordenar los IDs antes de bloquear. Asimismo, la violación concurrente de la restricción `UNIQUE` de `clave_idempotencia` requiere traducción explícita a HTTP 409.
+- **Verificación:** `PedidoServiceTest` verifica con Mockito las reglas de negocio y que ante error no se invoque `save()` ni `publishEvent()`, y `InventarioYPedidosDataJpaTest` verifica en H2 el modo `PESSIMISTIC_WRITE` y la restricción `UNIQUE`. La prueba concurrente sobre PostgreSQL real queda pendiente para la fase de carga.

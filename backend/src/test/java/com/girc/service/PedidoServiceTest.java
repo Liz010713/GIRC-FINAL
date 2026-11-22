@@ -2,6 +2,8 @@ package com.girc.service;
 
 import com.girc.domain.entity.Pedido;
 import com.girc.domain.entity.Producto;
+import com.girc.domain.enums.EstadoPedido;
+import com.girc.domain.enums.EstadoProducto;
 import com.girc.dto.CrearPedidoRequest;
 import com.girc.exception.ConflictoNegocioException;
 import com.girc.exception.RecursoNoEncontradoException;
@@ -59,11 +61,11 @@ class PedidoServiceTest {
 
         // Assert
         assertThat(pedido.getId()).isEqualTo(41L);
-        assertThat(pedido.getEstado()).isEqualTo("Pendiente");
+        assertThat(pedido.getEstado()).isEqualTo(EstadoPedido.PENDIENTE);
         assertThat(pedido.getTotalNeto()).isEqualByComparingTo("50.00");
         assertThat(pedido.getDetalles()).hasSize(1);
         assertThat(producto.getStockActual()).isEqualTo(6);
-        assertThat(producto.getEstado()).isEqualTo("Crítico");
+        assertThat(producto.getEstado()).isEqualTo(EstadoProducto.CRITICO);
         verify(pedidoRepository, times(1)).save(any(Pedido.class));
         verify(eventPublisher, times(1)).publishEvent(any(PedidoCreadoEvent.class));
     }
@@ -123,7 +125,7 @@ class PedidoServiceTest {
                 .precioUnitario(new BigDecimal("12.50"))
                 .stockActual(stock)
                 .stockMinimo(stockMinimo)
-                .estado("Disponible")
+                .estado(EstadoProducto.DISPONIBLE)
                 .build();
     }
 

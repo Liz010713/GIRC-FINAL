@@ -3,7 +3,10 @@ package com.girc.service;
 import com.girc.domain.entity.DetallePedido;
 import com.girc.domain.entity.Pedido;
 import com.girc.domain.entity.Producto;
+import com.girc.domain.enums.EstadoPedido;
+import com.girc.domain.enums.EstadoProducto;
 import com.girc.dto.CrearPedidoRequest;
+import com.girc.dto.PedidoResumenResponse;
 import com.girc.exception.ConflictoNegocioException;
 import com.girc.exception.RecursoNoEncontradoException;
 import com.girc.exception.StockInsuficienteException;
@@ -27,14 +30,23 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PedidoServiceImpl implements PedidoService {
 
-    private static final String ESTADO_PENDIENTE = "Pendiente";
-    private static final String ESTADO_DISPONIBLE = "Disponible";
-    private static final String ESTADO_CRITICO = "Crítico";
-    private static final String ESTADO_AGOTADO = "Agotado";
-
     private final ProductoRepository productoRepository;
     private final PedidoRepository pedidoRepository;
     private final ApplicationEventPublisher eventPublisher;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PedidoResumenResponse> listarPedidos() {
+        return pedidoRepository.findAllByOrderByFechaCreacionDesc().stream()
+                .map(pedido -> new PedidoResumenResponse(
+                        pedido.getId(),
+                        pedido.getCodigoOrden(),
+                        pedido.getIdUsuario(),
+                        pedido.getTotalNeto(),
+                        pedido.getEstado(),
+                        pedido.getFechaCreacion()))
+                .toList();
+    }
 
     @Override
     @Transactional
@@ -84,7 +96,7 @@ public class PedidoServiceImpl implements PedidoService {
         stockRestantePorProducto.forEach((idProducto, stockRestante) -> {
             Producto producto = productosPorId.get(idProducto);
             producto.setStockActual(stockRestante);
-            producto.setEstado(calcularEstadoProducto(producto));
+            producto.setEstado(EstadoProducto.desdeStock(producto.getStockActual(), producto.getStockMinimo()));
         });
 
         OffsetDateTime ahora = OffsetDateTime.now(ZoneOffset.UTC);
@@ -93,7 +105,7 @@ public class PedidoServiceImpl implements PedidoService {
                 .idUsuario(request.idUsuario())
                 .claveIdempotencia(request.claveIdempotencia())
                 .totalNeto(totalNeto)
-                .estado(ESTADO_PENDIENTE)
+                .estado(EstadoPedido.PENDIENTE)
                 .fechaCreacion(ahora)
                 .detalles(detalles)
                 .build();
@@ -108,15 +120,5 @@ public class PedidoServiceImpl implements PedidoService {
                 pedidoGuardado.getFechaCreacion()));
 
         return pedidoGuardado;
-    }
-
-    private String calcularEstadoProducto(Producto producto) {
-        if (producto.getStockActual() == 0) {
-            return ESTADO_AGOTADO;
-        }
-        if (producto.getStockActual() <= producto.getStockMinimo()) {
-            return ESTADO_CRITICO;
-        }
-        return ESTADO_DISPONIBLE;
     }
 }

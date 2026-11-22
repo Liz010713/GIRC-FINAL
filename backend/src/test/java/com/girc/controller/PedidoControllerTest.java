@@ -1,6 +1,7 @@
 package com.girc.controller;
 
 import com.girc.domain.entity.Pedido;
+import com.girc.domain.enums.EstadoPedido;
 import com.girc.exception.ConflictoNegocioException;
 import com.girc.exception.GlobalExceptionHandler;
 import com.girc.exception.RecursoNoEncontradoException;
@@ -163,7 +164,7 @@ class PedidoControllerTest {
                 .idUsuario(7L)
                 .claveIdempotencia("clave-001")
                 .totalNeto(java.math.BigDecimal.ZERO)
-                .estado("Pendiente")
+                .estado(EstadoPedido.PENDIENTE)
                 .build();
         when(pedidoService.crearPedido(any())).thenReturn(pedido);
 

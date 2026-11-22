@@ -6,8 +6,81 @@
 body {
   font-family: "Aptos", "Calibri", sans-serif;
   color: #172321;
-  font-size: 10.5pt;
+  font-size: 10.2pt;
   line-height: 1.42;
+}
+
+.cover-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 245mm;
+  padding: 12mm 6mm;
+  box-sizing: border-box;
+  page-break-after: always;
+}
+
+.cover-kicker {
+  font-size: 10pt;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #24634d;
+  margin-bottom: 10pt;
+}
+
+.cover-title {
+  font-size: 28pt;
+  line-height: 1.15;
+  color: #173a32;
+  margin: 0 0 8pt;
+  border-bottom: 3px solid #24634d;
+  padding-bottom: 10pt;
+}
+
+.cover-subtitle {
+  font-size: 13.5pt;
+  font-weight: 600;
+  color: #2d4c43;
+  margin: 0 0 24pt;
+}
+
+.cover-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+  margin-bottom: 18pt;
+}
+
+.cover-table th,
+.cover-table td {
+  border: 1px solid #cbd6cf;
+  padding: 8px 10px;
+}
+
+.cover-table th {
+  width: 32%;
+  text-align: left;
+  background: #e8f0ea;
+  color: #173a32;
+}
+
+.cover-note {
+  font-size: 9pt;
+  color: #40564b;
+  margin-top: 8pt;
+}
+
+#TOC {
+  page-break-after: always;
+}
+
+#TOC > ul {
+  padding-left: 18px;
+}
+
+#TOC li {
+  margin: 3px 0;
 }
 
 h1, h2, h3 {
@@ -15,14 +88,14 @@ h1, h2, h3 {
   page-break-after: avoid;
 }
 
-h1 { font-size: 24pt; }
-h2 { font-size: 17pt; margin-top: 20pt; }
-h3 { font-size: 13pt; margin-top: 14pt; }
+h1 { font-size: 22pt; }
+h2 { font-size: 15.5pt; margin-top: 18pt; }
+h3 { font-size: 12.5pt; margin-top: 13pt; }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 8.5pt;
+  font-size: 8.3pt;
   page-break-inside: auto;
 }
 
@@ -34,11 +107,25 @@ th, td {
 }
 th { background: #e8f0ea; }
 
+figure {
+  margin: 10px 0 18px;
+  text-align: center;
+  page-break-inside: avoid;
+}
+
+figure figcaption {
+  font-size: 8.5pt;
+  color: #40564b;
+  margin-top: 4px;
+}
+
 img {
   display: block;
   max-width: 100%;
-  max-height: 235mm;
-  margin: 8px auto 16px;
+  max-height: 225mm;
+  width: auto !important;
+  height: auto !important;
+  margin: 6px auto 10px;
   page-break-inside: avoid;
 }
 

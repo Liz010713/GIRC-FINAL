@@ -11,6 +11,8 @@ import java.util.Optional;
 
 public interface ProductoRepository extends JpaRepository<Producto, Long> {
 
+    boolean existsBySku(String sku);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Producto p WHERE p.id = :id")
     Optional<Producto> findByIdWithLock(@Param("id") Long id);

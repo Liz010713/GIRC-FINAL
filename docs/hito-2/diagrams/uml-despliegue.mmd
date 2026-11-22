@@ -1,12 +1,13 @@
 flowchart TB
   subgraph local["Entorno local · implementado en Docker Compose"]
-    direction LR
+    direction TB
     web["«device» Equipo del operador<br/>Navegador con SPA React"]
     subgraph host["«node» Host Docker Compose"]
-      front["«container» girc-frontend<br/>Nginx · host 80 → 80"]
-      api["«container» girc-backend<br/>JRE 21 + Spring Boot · host 8080 → 8080"]
-      db["«container» girc-db<br/>PostgreSQL 16 · host 5432 → 5432"]
-      vol[("Volumen postgres_data")]
+      direction TB
+      front["«container» girc-frontend<br/>Nginx · puerto 80 → 80"]
+      api["«container» girc-backend<br/>JRE 21 + Spring Boot · puerto 8080 → 8080"]
+      db["«container» girc-db<br/>PostgreSQL 16 · puerto 5432 → 5432"]
+      vol[("Volumen persistente postgres_data")]
       front -->|HTTP backend:8080| api
       api -->|JDBC db:5432| db
       db --- vol
@@ -15,16 +16,20 @@ flowchart TB
   end
 
   subgraph production["Producción · topología propuesta"]
-    direction LR
+    direction TB
     remote["«device» Equipo del operador<br/>Navegador con SPA React"]
-    subgraph vps["«node» VPS · host Docker"]
-      proxy["«container» Frontend Nginx<br/>Proxy inverso y terminación TLS"]
+    subgraph vps["«node» Servidor VPS · Host Docker"]
+      direction TB
+      proxy["«container» Frontend Nginx<br/>Proxy inverso y terminación TLS/SSL"]
       subgraph private["Red privada de aplicación"]
-        service["«container» API Spring Boot"]
-        pg["«container» PostgreSQL<br/>Volumen persistente"]
-        service -->|JDBC| pg
+        direction TB
+        service["«container» API Spring Boot<br/>JRE 21 sin exposición directa"]
+        pg["«container» PostgreSQL 16<br/>Volumen persistente cifrado"]
+        service -->|JDBC interno| pg
       end
       proxy -->|HTTP interno| service
     end
     remote -->|HTTPS :443| proxy
   end
+
+  local ~~~ production

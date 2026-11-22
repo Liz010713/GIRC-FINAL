@@ -1,5 +1,17 @@
 classDiagram
   namespace GIRC {
+    class EstadoProducto {
+      <<enumeration>>
+      DISPONIBLE
+      CRITICO
+      AGOTADO
+    }
+    class EstadoPedido {
+      <<enumeration>>
+      PENDIENTE
+      CONFIRMADO
+      CANCELADO
+    }
     class Producto {
       -Long id
       -String sku
@@ -7,7 +19,7 @@ classDiagram
       -BigDecimal precioUnitario
       -Integer stockActual
       -Integer stockMinimo
-      -String estado
+      -EstadoProducto estado
     }
     class Pedido {
       -Long id
@@ -15,7 +27,7 @@ classDiagram
       -Long idUsuario
       -String claveIdempotencia
       -BigDecimal totalNeto
-      -String estado
+      -EstadoPedido estado
       -OffsetDateTime fechaCreacion
     }
     class DetallePedido {
@@ -26,11 +38,13 @@ classDiagram
     }
     class PedidoServiceImpl {
       +crearPedido(CrearPedidoRequest request) Pedido
-      -calcularEstadoProducto(Producto producto) String
+      -calcularEstadoProducto(Producto producto) EstadoProducto
     }
   }
   Pedido "1" *-- "0..*" DetallePedido : detalles
   DetallePedido "0..*" --> "1" Producto : producto
+  Producto --> EstadoProducto : estado
+  Pedido --> EstadoPedido : estado
   PedidoServiceImpl ..> Pedido : crea
   PedidoServiceImpl ..> Producto : actualiza stock
   note for Pedido "idUsuario es escalar. La API exige al menos un ítem."

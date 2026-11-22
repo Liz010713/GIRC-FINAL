@@ -2,10 +2,10 @@ spring:
   application:
     name: girc
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/girc_db}
-    username: ${SPRING_DATASOURCE_USERNAME:girc}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mariadb://localhost:3306/GIRC?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
     password: ${SPRING_DATASOURCE_PASSWORD:}
-    driver-class-name: org.postgresql.Driver
+    driver-class-name: org.mariadb.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: update
